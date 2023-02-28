@@ -1,0 +1,19 @@
+{
+  "name": "batchresearch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "Matej Rastocky",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "kafkajs": "^2.2.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
