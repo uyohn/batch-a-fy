@@ -7,8 +7,8 @@ run this project like this:
 `docker compose up`
 
 # start consumer
-node index.js
+`node index.js`
 
 # start producer
-node producer/index.js
+`node producer/index.js`
 ```
