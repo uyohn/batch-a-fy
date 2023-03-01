@@ -1,37 +1,65 @@
 const Consumer = require('./consumer/index')
 
 const maxBatchSize = 10
-let uncommitedOffset = null
+const minSleepInterval = 1000
+const maxSleepInterval = 60000
+let sleepInterval = minSleepInterval
+
+// sleep function
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 async function batchHandler ({batch, resolveOffset}) {
     const messageQuantity = batch.messages.length
     console.log(`CONSUMER Received batch, messages: ${messageQuantity} | Max Batch Size: ${maxBatchSize}`)
 
-    if (messageQuantity < maxBatchSize) {
-        if (!uncommitedOffset) {
-            uncommitedOffset = batch.lastOffset()
+    // if the sleep interval goes over certain threshold, process whatever there is
+    if (sleepInterval > maxSleepInterval) {
+        console.log('CONSUMER Max sleep interval reached, processing whatever amount of messages there is...')
+
+        // turn this into separate function, reuse in other places
+        for (const message of batch.messages) {
+            resolveOffset(message.offset)
+            console.log(`Message ${message.value} commited`)
         }
 
-        console.log('Uncommited messages start at offset: ', uncommitedOffset)
-        
-        console.log(`CONSUMER ${messageQuantity} messages, waiting for more...`)
+        // reset sleepInterval, so that it doesn't keep growing
+        sleepInterval = minSleepInterval
         return
     }
 
-    // Process messages
-    // we need to remove first n elements from the array and store them
-    let sfBatch = batch.messages.splice(0, maxBatchSize)
-    console.log('sfBatch', sfBatch)
+    // if there are less messages than maxBatchSize, wait for more
+    if (messageQuantity < maxBatchSize) {        
+        console.log(`CONSUMER has ${messageQuantity} messages, waiting for more, sleep interval ${sleepInterval}...`)
+        
+        // sleep for sleepInterval
+        await sleep(sleepInterval)
 
-    // const sfRes = await processMessages({ messages: batch.messages.slice(-maxBatchSize) })
+        // double sleepInterval
+        sleepInterval = sleepInterval * 2
 
-    // for (const message of sfRes) {
-    //     resolveOffset(message.offset)
-    //     console.log(`Message ${message.value} processed`)
-    // }
+        return
+    }
 
-    // resolve(sfRes)
+    // Process messages in batches of maxBatchSize
+    for (let i = 1; i < messageQuantity / maxBatchSize; i++) {
+        // get batch of messages, amount of messages is maxBatchSize
+        const sfBatch = batch.messages.splice(0, maxBatchSize)
+
+        // call sf
+        // ...
+        
+        // after sf call resolveOffset for each message
+        for (const message of sfBatch) {
+            resolveOffset(message.offset)
+            console.log(`Message ${message.value} commited`)
+        }
+
+        // reset sleepInterval
+        sleepInterval = minSleepInterval
+    }
 }
+
+let i = 0
 
 async function main () {
     const consumer = await Consumer()
@@ -43,6 +71,8 @@ async function main () {
             commitOffsetsIfNecessary, uncommittedOffsets,
             isRunning, isStale, pause
         }) => {
+            console.log(`CONSUMER Running batch ${i++}`)
+
             // if the consumer is shutting down in the middle of the batch,
             // the remaining messages won't be resolved and therefore not committed
             if (!isRunning() || isStale()) return
@@ -56,7 +86,7 @@ async function main () {
             // Process batch
             await batchHandler({batch, resolveOffset})
             
-            // Clear interval
+            // Clear interval after batch is processed
             clearInterval(heartBeatInterval)
         },
     });
