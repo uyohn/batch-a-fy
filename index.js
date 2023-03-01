@@ -28,7 +28,7 @@ async function batchHandler ({batch, resolveOffset}) {
     }
 
     // if there are less messages than maxBatchSize, wait for more
-    if (messageQuantity < maxBatchSize) {        
+    if (messageQuantity <= maxBatchSize) {        
         console.log(`CONSUMER has ${messageQuantity} messages, waiting for more, sleep interval ${sleepInterval}...`)
         
         // sleep for sleepInterval
